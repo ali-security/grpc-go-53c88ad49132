@@ -28,7 +28,14 @@ func verifySubConnStates(t *testing.T, scs []*channelzpb.Subchannel, want map[ch
 	t.Helper()
 	var scStatsCount = map[channelzpb.ChannelConnectivityState_State]int{}
 	for _, sc := range scs {
-		scStatsCount[sc.Data.State.State]++
+		st := sc.Data.State.State
+		// channelz leaves a subchannel's state unset (reported as UNKNOWN)
+		// until its first connectivity change, so a subchannel that was
+		// created and never asked to connect is still IDLE.
+		if st == channelzpb.ChannelConnectivityState_UNKNOWN {
+			st = channelzpb.ChannelConnectivityState_IDLE
+		}
+		scStatsCount[st]++
 	}
 	if diff := cmp.Diff(scStatsCount, want); diff != "" {
 		t.Fatalf("got unexpected number of subchannels in state Ready, %v, scs: %v", diff, scs)
